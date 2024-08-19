@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "388149789363",
+    "project_id": "madrassa-da9ca",
+    "storage_bucket": "madrassa-da9ca.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:388149789363:android:32e39837bacfe9f8cba6c6",
+        "android_client_info": {
+          "package_name": "com.example.madrassa"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDtZ9j1wLqtvWtMhTo-1o-INXKiyYgzKaE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
