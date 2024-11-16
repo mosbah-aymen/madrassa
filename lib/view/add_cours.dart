@@ -32,28 +32,33 @@ class AddCours extends StatefulWidget {
 class _AddCoursState extends State<AddCours> {
   Random rand = Random();
   TextEditingController nameController = TextEditingController();
+  TextEditingController priceController = TextEditingController();
+  TextEditingController seanceController = TextEditingController();
   int? year;
-  String? yearLevel,selectedAutreLevel;
+  int? nombreSeances;
+  int? price;
+  String? yearLevel, selectedAutreLevel;
   Subject? selectedSubject;
   String newSubjectName = "";
   Level? selectedLevel;
   Teacher? selectedTeacher; // Variable to hold the selected teacher
   Cours? newCoursEmpty;
   List<Group> groups = [
-    Group(id: "", name: "Groupe 1", students: [], groupeAttendance: [], schedule: [], cours: null),
+    Group(id: "", name: "Groupe 1", students: [], groupeAttendance: [], schedule: [], cours: null,profPercent: 0),
   ];
+  List<TextEditingController> percentController =[TextEditingController()];
 
   Future<void> _selectDateTimeRange(int groupeIndex, bool isRecurring) async {
     if (isRecurring) {
       // Select the days for recurring schedule
-      await _selectRecurrenceDays(groupeIndex).then((selectedDays)async{
+      await _selectRecurrenceDays(groupeIndex).then((selectedDays) async {
         if (selectedDays != null && selectedDays.isNotEmpty) {
           // Select the start time
           TimeOfDay? debut = await showTimePicker(
             context: context,
-            initialTime: groups[groupeIndex==0?0:groupeIndex-1].repeatedDaysOfWeek==null || groups[groupeIndex==0?0:groupeIndex-1].repeatedDaysOfWeek!.isEmpty?
-            TimeOfDay.now().replacing(minute: 00)
-                :groups[groupeIndex==0?0:groupeIndex-1].repeatedDaysOfWeek!.last.end,
+            initialTime: groups[groupeIndex == 0 ? 0 : groupeIndex - 1].repeatedDaysOfWeek == null || groups[groupeIndex == 0 ? 0 : groupeIndex - 1].repeatedDaysOfWeek!.isEmpty
+                ? TimeOfDay.now().replacing(minute: 00)
+                : groups[groupeIndex == 0 ? 0 : groupeIndex - 1].repeatedDaysOfWeek!.last.end,
             helpText: "Temps de début de séance :",
           );
 
@@ -79,7 +84,6 @@ class _AddCoursState extends State<AddCours> {
                   dayIndex: day,
                   dayNameFr: _getDayNameFr(day),
                   dayNameAr: _getDayNameAr(day),
-                  nextDay: nextDay,
                 );
 
                 // Check for conflicts in the recurring schedule
@@ -112,7 +116,6 @@ class _AddCoursState extends State<AddCours> {
           );
         }
       });
-
     } else {
       // Handle non-recurring schedule
       await showDatePicker(
@@ -128,7 +131,7 @@ class _AddCoursState extends State<AddCours> {
             child: child!,
           );
         },
-      ).then((pickedDay)async{
+      ).then((pickedDay) async {
         if (pickedDay != null) {
           TimeOfDay? debut = await showTimePicker(
             context: context,
@@ -164,7 +167,7 @@ class _AddCoursState extends State<AddCours> {
               DateTimeRange newRange = DateTimeRange(start: start, end: end);
 
               // Check for conflicts in the non-recurring schedule
-              String? checkStatus = _checkForConflict(groupeIndex, newRange, groups[groupeIndex].room,null);
+              String? checkStatus = _checkForConflict(groupeIndex, newRange, groups[groupeIndex].room, null);
 
               if (checkStatus == null) {
                 setState(() {
@@ -180,7 +183,6 @@ class _AddCoursState extends State<AddCours> {
             }
           }
         }
-
       });
     }
   }
@@ -219,7 +221,8 @@ class _AddCoursState extends State<AddCours> {
     if (day != null && group.repeatedDaysOfWeek != null) {
       for (RepeatedDay existingDay in group.repeatedDaysOfWeek!) {
         if (existingDay.dayIndex == day.dayIndex) {
-          DateTime existingStart = existingDay.nextDay;
+          DateTime existingStart = DateTime(day.nextDay.year,day.nextDay.month,day.nextDay.day,day.nextDay.hour,day.nextDay.minute);
+
           DateTime existingEnd = existingDay.nextDay.add(
             Duration(
               hours: existingDay.end.hour - existingDay.start.hour,
@@ -237,7 +240,7 @@ class _AddCoursState extends State<AddCours> {
     // Optionally, check conflicts with the room's schedule
     if (room != null) {
       for (Cours cours in existingCours) {
-        for (Group otherGroup in cours.groups.where((test) =>test.room != null && test.room!.id == room.id)) {
+        for (Group otherGroup in cours.groups.where((test) => test.room != null && test.room!.id == room.id)) {
           for (DateTimeRange existingRange in otherGroup.schedule) {
             if (newRange.start.isBefore(existingRange.end) && newRange.end.isAfter(existingRange.start)) {
               return "${otherGroup.name} de '${cours.name}' dans la salle ${room.name}.";
@@ -246,15 +249,9 @@ class _AddCoursState extends State<AddCours> {
 
           if (day != null && otherGroup.repeatedDaysOfWeek != null) {
             for (RepeatedDay existingDay in otherGroup.repeatedDaysOfWeek!) {
-              if (existingDay.dayIndex == day) {
-                DateTime existingStart = existingDay.nextDay;
-                DateTime existingEnd = existingDay.nextDay.add(
-                  Duration(
-                    hours: existingDay.end.hour - existingDay.start.hour,
-                    minutes: existingDay.end.minute - existingDay.start.minute,
-                  ),
-                );
-
+              if (existingDay.dayIndex == day.dayIndex) {
+                DateTime existingStart = DateTime(existingDay.nextDay.year,existingDay.nextDay.month,existingDay.nextDay.day,existingDay.start.hour,existingDay.start.minute);
+                DateTime existingEnd = DateTime(existingDay.nextDay.year,existingDay.nextDay.month,existingDay.nextDay.day,existingDay.end.hour,existingDay.end.minute);
                 if (newRange.start.isBefore(existingEnd) && newRange.end.isAfter(existingStart)) {
                   return "Conflit détecté avec une autre séance récurrente dans la même salle.";
                 }
@@ -264,7 +261,7 @@ class _AddCoursState extends State<AddCours> {
         }
       }
       for (Group otherGroup in groups) {
-        if (otherGroup.name != group.name && otherGroup.room!=null && otherGroup.room!.id == room.id) {
+        if (otherGroup.name != group.name && otherGroup.room != null && otherGroup.room!.id == room.id) {
           for (DateTimeRange existingRange in otherGroup.schedule) {
             if (newRange.start.isBefore(existingRange.end) && newRange.end.isAfter(existingRange.start)) {
               return "${otherGroup.name} a réservé la salle '${room.name}' au meme temps!";
@@ -278,7 +275,7 @@ class _AddCoursState extends State<AddCours> {
                 DateTime existingEnd = existingDay.nextDay.add(
                   Duration(
                     hours: existingDay.end.hour - existingDay.start.hour,
-                    minutes: existingDay.end.minute - existingDay.start.minute-1,
+                    minutes: existingDay.end.minute - existingDay.start.minute - 1,
                   ),
                 );
 
@@ -328,7 +325,15 @@ class _AddCoursState extends State<AddCours> {
 
   Future<List<int>?> _selectRecurrenceDays(int groupIndex) async {
     List<String> daysOfWeekNames = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
-    List<int> daysOfWeek = [7,1,2,3,4,5,6,];
+    List<int> daysOfWeek = [
+      7,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+    ];
     List<int> selectedDays = [];
     if (groups[groupIndex].repeatedDaysOfWeek != null) {
       for (var value in groups[groupIndex].repeatedDaysOfWeek!) {
@@ -346,7 +351,7 @@ class _AddCoursState extends State<AddCours> {
               title: const Text('Sélectionner les jours de la semaine'),
               content: SingleChildScrollView(
                 child: Column(
-                  children:List.generate(7, (index){
+                  children: List.generate(7, (index) {
                     return CheckboxListTile(
                       title: Text(daysOfWeekNames[index]),
                       value: selectedDays.contains(daysOfWeek[index]),
@@ -354,7 +359,6 @@ class _AddCoursState extends State<AddCours> {
                         if (value != null) {
                           if (value && !selectedDays.contains(daysOfWeek[index])) {
                             selectedDays.add(daysOfWeek[index]);
-
                           } else {
                             selectedDays.remove(daysOfWeek[index]);
                           }
@@ -362,8 +366,7 @@ class _AddCoursState extends State<AddCours> {
                         }
                       },
                     );
-                  }
-                ),
+                  }),
                 ),
               ),
               actions: [
@@ -411,15 +414,29 @@ class _AddCoursState extends State<AddCours> {
       Fluttertoast.showToast(msg: "Veuillez sélectionner l'année de ce cours", backgroundColor: Colors.red);
       return;
     }
-
+    nombreSeances = int.tryParse(seanceController.text);
+    if (nombreSeances == null) {
+      Fluttertoast.showToast(msg: "Merci de spécifier le nombre de séances", backgroundColor: Colors.red);
+      return;
+    }
+    price = int.tryParse(priceController.text);
+    if (price == null) {
+      Fluttertoast.showToast(msg: "Merci de spécifier un prix", backgroundColor: Colors.red);
+      return;
+    }
     // Validate groups
-    for (Group group in groups) {
-      if (group.schedule.isEmpty && group.repeatedDaysOfWeek != null && group.repeatedDaysOfWeek!.isEmpty) {
-        Fluttertoast.showToast(msg: "Veuillez ajouter au moins une plage horaire pour le groupe ${group.name}", backgroundColor: Colors.red);
+    for (int i=0; i <groups.length; i++) {
+      if (groups[i].schedule.isEmpty && (groups[i].repeatedDaysOfWeek == null || groups[i].repeatedDaysOfWeek!.isEmpty)) {
+        Fluttertoast.showToast(msg: "Veuillez ajouter au moins une plage horaire pour le groupe ${groups[i].name}", backgroundColor: Colors.red);
         return;
       }
-      if (group.room == null) {
-        Fluttertoast.showToast(msg: "Veuillez sélectionner une salle pour le groupe ${group.name}", backgroundColor: Colors.red);
+      if (groups[i].room == null) {
+        Fluttertoast.showToast(msg: "Veuillez sélectionner une salle pour le groupe ${groups[i].name}", backgroundColor: Colors.red);
+        return;
+      }
+      groups[i].profPercent=double.tryParse(percentController[i].text)??0;
+      if (groups[i].profPercent == 0) {
+        Fluttertoast.showToast(msg: "Merci de spécifier un pourcentage de l'enseignant pour le groupe ${groups[i].name}", backgroundColor: Colors.red);
         return;
       }
     }
@@ -431,27 +448,36 @@ class _AddCoursState extends State<AddCours> {
     }
 
     Cours newCours = Cours(
-      id: '', // Generate or get this id
-      name: nameController.text,
-      teacher: selectedTeacher!,
-      level: selectedLevel!,
-      subject: selectedSubject!,
-      year: yearLevel!,
-      createdAt: DateTime.now(),
-      isRepeat: false, // Set based on user input if applicable
-      daysWeek: selectedDateTimeRanges,
-      groups: groups,
+        id: '', // Generate or get this id
+        name: nameController.text,
+        teacher: selectedTeacher!,
+        level: selectedLevel!,
+        subject: selectedSubject!,
+        year: yearLevel!,
+        createdAt: DateTime.now(),
+        isRepeat: false, // Set based on user input if applicable
+        daysWeek: selectedDateTimeRanges,
+        groups: groups,
+        price: price!,
+        nombreSeance: nombreSeances!,
     );
 
+    showDialog(
+        context: context,
+        builder: (context) => const Center(
+              child: CircularProgressIndicator(),
+            ),
+        barrierDismissible: false);
     // Save groups and course
     try {
       for (int i = 0; i < groups.length; i++) {
-        groups[i].cours = newCours;
-        await GroupController.createGroup(groups[i]);
+        newCours.groups[i].cours = newCours;
+        String id = await GroupController.createGroup(groups[i]);
+        newCours.groups[i].id = id;
       }
-      newCours.groups = groups;
       await CoursController.createCours(newCours);
       Fluttertoast.showToast(msg: "Cours ajouté avec succès", backgroundColor: Colors.green);
+      Navigator.pop(context);
       Navigator.pop(context);
     } catch (e) {
       Fluttertoast.showToast(msg: "Erreur lors de l'ajout du cours : ${e.toString()}", backgroundColor: Colors.red);
@@ -474,10 +500,10 @@ class _AddCoursState extends State<AddCours> {
     initializeDateFormatting('fr_FR', null);
   }
 
-
   @override
   Widget build(BuildContext context) {
-    nameController.text = "${selectedSubject == null ? "" : "${selectedSubject!.name} "}${selectedLevel == null || yearLevel == null ? "" : yearLevel!}${selectedTeacher == null ? "" : "${selectedTeacher!.sex==Sex.female?' الأستاذة ':' الأستاذ '}${selectedTeacher!.name}"}";
+    nameController.text =
+        "${selectedSubject == null ? "" : "${selectedSubject!.name} "}${selectedLevel == null || yearLevel == null ? "" : yearLevel!}${selectedTeacher == null ? "" : "${selectedTeacher!.sex == Sex.female ? ' الأستاذة ' : ' الأستاذ '}${selectedTeacher!.name}"}";
     return Scaffold(
       appBar: AppBar(
         title: const Text("Ajouter une formation"),
@@ -489,6 +515,8 @@ class _AddCoursState extends State<AddCours> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               buildTextFormField(nameController, "Nom De Cours/formation", TextInputType.text, readOnly: false),
+              const SizedBox(height: 20),
+              setPriceAndPercent(),
               const SizedBox(height: 20),
               selectTeacher(),
               TextButton(
@@ -535,7 +563,23 @@ class _AddCoursState extends State<AddCours> {
     );
   }
 
+  Widget setPriceAndPercent() {
+    return Row(
+      children: [
+        Expanded(child: buildTextFormField(priceController, "Le Prix", TextInputType.number, isRequired: true)),
+        const SizedBox(
+          width: 5,
+        ),
+        Expanded(child: buildTextFormField(seanceController, "NºSéances", TextInputType.number, isRequired: true)),
+        const SizedBox(
+          width: 5,
+        ),
+      ],
+    );
+  }
+
   Widget groupsWidget() {
+
     return Column(
       children: [
         ...List.generate(
@@ -576,6 +620,11 @@ class _AddCoursState extends State<AddCours> {
                     ),
                   ),
                   const Divider(),
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: buildTextFormField(percentController[indexGroupe], "Prof %", TextInputType.number, isRequired: true,fillColor: Colors.white),
+                  ),
+
                   Padding(
                     padding: const EdgeInsets.all(8.0),
                     child: selectRoom(indexGroupe),
@@ -655,8 +704,10 @@ class _AddCoursState extends State<AddCours> {
                 schedule: [],
                 room: null,
                 repeatedDaysOfWeek: [],
+                profPercent: 0,
               ));
             });
+            percentController.add(TextEditingController());
           },
           child: const Text("Ajouter un groupe"),
         ),
@@ -861,45 +912,45 @@ class _AddCoursState extends State<AddCours> {
     return selectedLevel == null
         ? const SizedBox()
         : selectedLevel!.index == Level.autre.index
-        ? selectAutreLevel()
-        : Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        border: Border.all(color: primaryColor),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: DropdownButton<int>(
-        key: const Key('value: year'),
-        value: year,
-        isExpanded: true,
-        borderRadius: BorderRadius.circular(20),
-        hint: const Text("Selectionner l'année"),
-        dropdownColor: Colors.white,
-        underline: const SizedBox(),
-        items: List.generate(
-          selectedLevel == Level.primaire
-              ? 5
-              : selectedLevel == Level.moyene
-              ? 4
-              : selectedLevel == Level.secondaire
-              ? 3
-              : 0, // No need to check for 'autre' here, handled separately
-              (index) => DropdownMenuItem(
-            value: index + 1,
-            child: Text("${index + 1} A${selectedLevel!.name.characters.first.toUpperCase()}"),
-          ),
-        ),
-        style: TextStyle(
-          color: primaryColor,
-        ),
-        onChanged: (v) {
-          setState(() {
-            year = v;
-            yearLevel = "${year}A${selectedLevel!.name.characters.first.toUpperCase()}";
-          });
-        },
-      ),
-    );
+            ? selectAutreLevel()
+            : Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  border: Border.all(color: primaryColor),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: DropdownButton<int>(
+                  key: const Key('value: year'),
+                  value: year,
+                  isExpanded: true,
+                  borderRadius: BorderRadius.circular(20),
+                  hint: const Text("Selectionner l'année"),
+                  dropdownColor: Colors.white,
+                  underline: const SizedBox(),
+                  items: List.generate(
+                    selectedLevel == Level.primaire
+                        ? 5
+                        : selectedLevel == Level.moyene
+                            ? 4
+                            : selectedLevel == Level.secondaire
+                                ? 3
+                                : 0, // No need to check for 'autre' here, handled separately
+                    (index) => DropdownMenuItem(
+                      value: index + 1,
+                      child: Text("${index + 1} A${selectedLevel!.name.characters.first.toUpperCase()}"),
+                    ),
+                  ),
+                  style: TextStyle(
+                    color: primaryColor,
+                  ),
+                  onChanged: (v) {
+                    setState(() {
+                      year = v;
+                      yearLevel = "${year}A${selectedLevel!.name.characters.first.toUpperCase()}";
+                    });
+                  },
+                ),
+              );
   }
 
   Widget selectLevel() {
@@ -939,7 +990,6 @@ class _AddCoursState extends State<AddCours> {
   }
 
   Widget selectAutreLevel() {
-
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
@@ -967,7 +1017,7 @@ class _AddCoursState extends State<AddCours> {
         ),
         onChanged: (v) {
           setState(() {
-            selectedAutreLevel=v;
+            selectedAutreLevel = v;
             yearLevel = v;
           });
         },
@@ -1285,5 +1335,4 @@ class _AddCoursState extends State<AddCours> {
               ],
             ));
   }
-
 }

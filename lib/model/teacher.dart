@@ -43,6 +43,7 @@ class Teacher {
   // Convert Teacher object to Firestore document
   Map<String, dynamic> toMap() {
     return {
+      'id':id,
       'name': name,
       'email': email,
       'phone': phone,

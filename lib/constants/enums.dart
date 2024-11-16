@@ -5,20 +5,31 @@ import 'package:madrassa/model/student.dart';
 import 'package:madrassa/model/subject.dart';
 import 'package:madrassa/model/teacher.dart';
 
-enum Role{ administrateur, secretaire, }
-enum Sex{ male, female}
+enum Role {
+  administrateur,
+  secretaire,
+}
+
+enum Sex {
+  male,
+  female,
+}
+
 enum AttendanceStatus {
   present,
   absent,
   late,
+  nonPaye,
 }
-enum Level{
+
+enum Level {
   primaire,
   moyene,
   secondaire,
   university,
   autre,
 }
+
 enum AutreLevel {
   preA,
   a1,
@@ -29,6 +40,7 @@ enum AutreLevel {
   c1,
   c2,
 }
+
 
 extension AutreLevelExtension on AutreLevel {
   String get name {
@@ -53,55 +65,17 @@ extension AutreLevelExtension on AutreLevel {
   }
 }
 
-// enum Subject{
-//   math,
-//   physique,
-//   langueArab,
-//   langueFrancaise,
-//   langueAnglaise,
-//   scienceIslamique,
-//   scienceDeLaNatureEtDeVie,
-//   histroriqueEtGeografique,
-//   philosophy,
-//   robotique,
-//   sourobane,
-//   autre,
-// }
-// extension SubjectExtension on Subject {
-//   String get name {
-//     switch (this) {
-//       case Subject.math:
-//         return 'Mathématiques';
-//       case Subject.physique:
-//         return 'Physique';
-//       case Subject.langueArab:
-//         return 'Langue Arabe';
-//       case Subject.langueFrancaise:
-//         return 'Langue Française';
-//       case Subject.langueAnglaise:
-//         return 'Langue Anglaise';
-//       case Subject.scienceIslamique:
-//         return 'Science Islamique';
-//       case Subject.scienceDeLaNatureEtDeVie:
-//         return 'Science de la Nature et de la Vie';
-//       case Subject.histroriqueEtGeografique:
-//         return 'Histoire et Géographie';
-//       case Subject.philosophy:
-//         return 'Philosophie';
-//       case Subject.robotique:
-//         return 'Robotique';
-//       case Subject.sourobane:
-//         return 'Sourobane';
-//       case Subject.autre:
-//         return 'Autre';
-//     }
-//   }
-// }
-//
 
-List<Cours> existingCours=[];
-List<Group> existingGroups=[];
-List<Teacher> existingTeachers=[];
-List<Student> existingStudents=[];
-List<Subject> existingSubjects=[];
-List<Room> existingRooms=[];
+enum PromotionTypeEnum {
+  freeEnrollment,
+  teacherOnlyPayment,
+  customDiscount,
+}
+
+
+List<Cours> existingCours = [];
+List<Group> existingGroups = [];
+List<Teacher> existingTeachers = [];
+List<Student> existingStudents = [];
+List<Subject> existingSubjects = [];
+List<Room> existingRooms = [];

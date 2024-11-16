@@ -1,15 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:madrassa/constants/colors.dart';
+import 'package:madrassa/controller/student_crtl.dart';
 import 'package:madrassa/view/add_cours.dart';
 import 'package:madrassa/view/add_prof.dart';
 import 'package:madrassa/view/add_student.dart';
 import 'package:madrassa/view/classes.dart';
+import 'package:madrassa/view/daily_program.dart';
 import 'package:madrassa/view/rooms.dart';
+import 'package:madrassa/view/student_details.dart';
 import 'package:madrassa/view/students.dart';
 import 'package:madrassa/view/teachers.dart';
 import 'package:madrassa/view/timetable.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:qrscan/qrscan.dart' as scanner;
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key});
@@ -21,7 +27,27 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   int _selectedPage = 0;
   String _selectedPageTitle='';
-  void onItemPressed(int index) {}
+  Future _scan() async {
+    await Permission.camera.request();
+    String? barcode = await scanner.scan();
+    if (barcode == null) {
+    } else {
+      scanHandler(barcode);
+    }
+  }
+
+  void scanHandler(String barcode) async {
+    print(barcode);
+    await StudentController.getStudentById(barcode).then((student) {
+      print(student);
+      if (student == null) {
+        Fluttertoast.showToast(msg: "Aucun étudiant avec ce QR Code",backgroundColor: Colors.red);
+      } else {
+        Navigator.push(context, MaterialPageRoute(builder: (context) =>  StudentDetails(student: student,)));
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     PageController pageController = PageController();
@@ -44,7 +70,9 @@ class _MyHomePageState extends State<MyHomePage> {
             labelStyle: const TextStyle(
               color: Colors.white,
             ),
-            onTap: () {},
+            onTap: () {
+              _scan();
+            },
           ),
           SpeedDialChild(
               shape: const CircleBorder(),
@@ -115,8 +143,16 @@ class _MyHomePageState extends State<MyHomePage> {
                   onTap: (){
                     Navigator.push(context, MaterialPageRoute(builder: (context)=>const Rooms()));
                   },
-                  leading: const Icon(FontAwesomeIcons.school),
+                  leading:  Icon(FontAwesomeIcons.school,color: secondaryColor,),
                   title: const Text("Les salles"),
+                  trailing: const Icon(Icons.arrow_forward_ios_rounded,size: 15,),
+                ),
+                ListTile(
+                  onTap: (){
+                    Navigator.push(context, MaterialPageRoute(builder: (context)=>const DailyProgram()));
+                  },
+                  leading: const Icon(FontAwesomeIcons.calendarWeek),
+                  title: const Text("Le Programme"),
                   trailing: const Icon(Icons.arrow_forward_ios_rounded,size: 15,),
                 ),
               ],

@@ -1,5 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:madrassa/controller/groupe_controller.dart';
 import 'package:madrassa/model/cours.dart';
+import 'package:madrassa/model/groupe.dart';
+import 'package:madrassa/model/teacher.dart';
 
 class CoursController {
   static final CollectionReference _coursCollection =
@@ -9,7 +12,12 @@ class CoursController {
   static Future<void> createCours(Cours cours) async {
     await _coursCollection.add(cours.toMap()).then((doc) async {
       await doc.update({'id': doc.id});
+      for (var value in cours.groups) {
+        value.cours!.id=doc.id;
+        GroupController.updateGroup(value);
+      }
     });
+
   }
 
   // Get a single Cours by ID
@@ -37,5 +45,14 @@ class CoursController {
   // Delete a Cours
   static Future<void> deleteCours(String id) async {
     await _coursCollection.doc(id).delete();
+  }
+
+  static Future<List<Cours>> getAllCoursOfTeacher(Teacher teacher)async {
+    QuerySnapshot querySnapshot = await _coursCollection.get();
+    return querySnapshot.docs
+        .map((doc) => Cours.fromMap(doc.data() as Map<String, dynamic>))
+    .where((test)=>test.teacher.id==teacher.id)
+        .toList();
+
   }
 }

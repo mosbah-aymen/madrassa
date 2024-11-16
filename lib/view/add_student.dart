@@ -32,6 +32,38 @@ class _AddStudentState extends State<AddStudent> {
       appBar: AppBar(
         title: const Text("Ajouter un étudiant"),
       ),
+      bottomNavigationBar:                 Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20.0),
+        child: ElevatedButton(
+          onPressed: () {
+            // Validate the form
+            if (_formKey.currentState!.validate()) {
+              if (_selectedSex == null) {
+                Fluttertoast.showToast(msg: 'Le sexe est requis');
+                return;
+              }
+              // If all validations pass
+              Student student = Student(
+                id: "",
+                nom: nomController.text,
+                prenom: prenomController.text,
+                nomArab: nomArabController.text,
+                prenomArab: prenomArabController.text,
+                groups: [],
+                email: emailController.text,
+                phone1: phone1Controller.text,
+                phone2: phone2Controller.text,
+                sex: _selectedSex!,
+                address: addressController.text,
+                imageUrl: "",
+              );
+              StudentController.createStudent(student, null);
+            }
+          },
+          child: const Text("Ajouter"),
+        ),
+      ),
+
       body: Padding(
         padding: const EdgeInsets.all(8.0),
         child: SingleChildScrollView(
@@ -41,55 +73,44 @@ class _AddStudentState extends State<AddStudent> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 // "champ obligatoire" message above the fields
-                buildTextFormField(nomController, "Nom :", TextInputType.text,isRequired: true),
-                const SizedBox(height: 8),
+                SizedBox(
+                  height: 100,
+                  child: Row(
+                    children: [
+                      Expanded(child: buildTextFormField(nomController, "Nom :", TextInputType.text,isRequired: true)),
+                      const SizedBox(
+                        width: 5,
+                      ),
+                      Expanded(child: buildTextFormField(prenomController, "Prénom :", TextInputType.text,isRequired: true)),
+                    ],
+                  ),
+                ),
 
-                buildTextFormField(prenomController, "Prénom :", TextInputType.text,isRequired: true),
-                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(child: buildTextFormField(nomArabController, "Nom (Arabe) :", TextInputType.text)),
+                    const SizedBox(
+                      width: 5,
+                    ),
+                    Expanded(child: buildTextFormField(prenomArabController, "Prénom (Arabe) :", TextInputType.text)),
+                  ],
+                ),
 
-                buildTextFormField(nomArabController, "Nom (Arabe) :", TextInputType.text),
-                buildTextFormField(prenomArabController, "Prénom (Arabe) :", TextInputType.text),
 
+
+                Row(
+                  children: [
+                    Expanded(child: buildTextFormField(phone1Controller, "Téléphone 1 :", TextInputType.phone,isRequired: true)),
+                    const SizedBox(
+                      width: 5,
+                    ),
+                    Expanded(child: buildTextFormField(phone2Controller, "Téléphone 2 :", TextInputType.phone)),
+                  ],
+                ),
                 buildTextFormField(emailController, "Email :", TextInputType.emailAddress),
-
-                buildTextFormField(phone1Controller, "Téléphone 1 :", TextInputType.phone,isRequired: true),
-                const SizedBox(height: 8),
-
-                buildTextFormField(phone2Controller, "Téléphone 2 :", TextInputType.phone),
                 buildTextFormField(addressController, "Adresse :", TextInputType.text),
 
                 _buildSexSelector(), // Gender selection with validation
-
-                const SizedBox(height: 20),
-
-                ElevatedButton(
-                  onPressed: () {
-                    // Validate the form
-                    if (_formKey.currentState!.validate()) {
-                      if (_selectedSex == null) {
-                        Fluttertoast.showToast(msg: 'Le sexe est requis');
-                        return;
-                      }
-                      // If all validations pass
-                      Student student = Student(
-                        id: "",
-                        nom: nomController.text,
-                        prenom: prenomController.text,
-                        nomArab: nomArabController.text,
-                        prenomArab: prenomArabController.text,
-                        groups: [],
-                        email: emailController.text,
-                        phone1: phone1Controller.text,
-                        phone2: phone2Controller.text,
-                        sex: _selectedSex!,
-                        address: addressController.text,
-                        imageUrl: "",
-                      );
-                      StudentController.createStudent(student, null);
-                    }
-                  },
-                  child: const Text("Ajouter"),
-                ),
               ],
             ),
           ),

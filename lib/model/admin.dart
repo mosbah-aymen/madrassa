@@ -18,6 +18,7 @@ class Admin {
   // Convert Admin object to a map for Firestore
   Map<String, dynamic> toMap() {
     return {
+      'id':id,
       'name': name,
       'email': email,
       'phone': phone,
@@ -28,7 +29,7 @@ class Admin {
   // Create an Admin object from a map retrieved from Firestore
   factory Admin.fromMap(Map<String, dynamic> data) {
     return Admin(
-      id: data['id'],
+      id: data['id']??'',
       name: data['name'] ?? '',
       email: data['email'] ?? '',
       phone: data['phone'] ?? '',

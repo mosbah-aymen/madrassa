@@ -12,6 +12,7 @@ class Student {
   String address;
   String imageUrl;
 
+
   Student({
     required this.id,
     required this.nom,
@@ -44,8 +45,12 @@ class Student {
     );
   }
 
+  String get fullNameFR => "$nom $prenom";
+  String get fullNameAR => "$nomArab $prenomArab";
+
   Map<String, dynamic> toMap() {
     return {
+      'id': id,
       'nom': nom,
       'prenom': prenom,
       'nomArab': nomArab,

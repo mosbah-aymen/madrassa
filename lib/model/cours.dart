@@ -15,6 +15,10 @@ class Cours {
   String year;
   DateTime createdAt;
   List<DateTimeRange> daysWeek;
+  int price;
+  int nombreSeance;
+
+  double get totalCostPerSeance => price / nombreSeance;
 
   Cours({
     required this.id,
@@ -27,6 +31,8 @@ class Cours {
     required this.year,
     required this.daysWeek,
     required this.createdAt,
+    required this.price,
+    required this.nombreSeance,
   });
 
   factory Cours.fromMap(Map<String, dynamic> data) {
@@ -34,12 +40,14 @@ class Cours {
       id: data['id']??"",
       name: data['name'] ?? '',
       teacher: Teacher.fromMap(data['teacher']),
-      groups: List.generate(data['groups'].length, (index) {
+      groups: List.generate(data['groups']==null?0:data['groups'].length, (index) {
         var group = Group.fromMap(data['groups'][index]);
         group.cours = null; // Set cours to this Cours object
         return group;
       }),
       isRepeat: data['isRepeat'] ?? false,
+      price: data['price'] ?? 0,
+      nombreSeance: data['nombreSeance'] ?? 0,
       year: data['year'],
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       subject: Subject.fromMap(data['subject']),
@@ -62,9 +70,12 @@ class Cours {
       group.cours = null; // Temporarily set cours to null to avoid circular reference
     }
     final map = {
+      'id':id,
       'name': name,
       'teacher': teacher.toMap(),
       'isRepeat': isRepeat,
+      'price': price,
+      'nombreSeance': nombreSeance,
       'year': year,
       'groups': groups.map((group) => group.toMap()).toList(),
       'subject': subject.toMap(),

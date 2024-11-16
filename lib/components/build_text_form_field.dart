@@ -8,20 +8,36 @@ Widget buildTextFormField(
     {
       bool readOnly=false,
       bool isRequired=false,
+      Color? fillColor,
     }
     ) {
   return Padding(
-    padding: const EdgeInsets.symmetric(vertical: 8.0),
+    padding: const EdgeInsets.symmetric(vertical: 4.0),
     child: TextFormField(
       readOnly: readOnly,
       controller: controller,
+      style: const TextStyle(fontSize: 13),
       textDirection: TextDirection.rtl,
       decoration: InputDecoration(
-        label: Text(label),
-        counter:isRequired? const Text("obligatoire",style: TextStyle(fontSize: 10,color: Colors.red),):null,
+        label: Text(label,style: const TextStyle(fontSize: 15)),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(20),
+          borderSide: BorderSide(color: primaryColor)
         ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+          borderSide: BorderSide(color: primaryColor)
+        ),
+        disabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+          borderSide: BorderSide(color: secondaryColor)
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+          borderSide: BorderSide(color: secondaryColor)
+        ),
+        fillColor: fillColor,
+        filled: fillColor!=null
       ),
       keyboardType: keyboardType,
       cursorColor: primaryColor,
