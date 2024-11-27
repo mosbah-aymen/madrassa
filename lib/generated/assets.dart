@@ -10,6 +10,7 @@ class Assets {
   static const String fontsUbuntuMedium = 'assets/fonts/Ubuntu-Medium.ttf';
   static const String fontsUbuntuMediumItalic = 'assets/fonts/Ubuntu-MediumItalic.ttf';
   static const String fontsUbuntuRegular = 'assets/fonts/Ubuntu-Regular.ttf';
+  static const String images2 = 'assets/images/2.png';
   static const String imagesLogoZedi = 'assets/images/logo_zedi.jpg';
   static const String imagesProfile = 'assets/images/profile.png';
 

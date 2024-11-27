@@ -1,14 +1,26 @@
+import 'dart:io';
+import 'dart:typed_data';
+import 'dart:ui';
+import 'package:flutter/cupertino.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'package:pdf/widgets.dart' as pw;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter_speed_dial/flutter_speed_dial.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart' as intl;
+import 'package:madrassa/components/student_carte.dart';
 import 'package:madrassa/constants/colors.dart';
 import 'package:madrassa/constants/enums.dart';
 import 'package:madrassa/controller/groupe_controller.dart';
+import 'package:madrassa/controller/student_crtl.dart';
 import 'package:madrassa/model/groupe.dart';
 import 'package:madrassa/model/groupe_attendance.dart';
 import 'package:madrassa/model/student.dart';
 import 'package:madrassa/model/student_attendance.dart';
 import 'package:madrassa/view/payment_form.dart';
 import 'package:madrassa/view/payment_history_student.dart';
+import 'package:printing/printing.dart';
 
 class StudentDetails extends StatefulWidget {
   final Student student;
@@ -20,18 +32,218 @@ class StudentDetails extends StatefulWidget {
 }
 
 class _StudentDetailsState extends State<StudentDetails> {
+  final GlobalKey _repaintBoundaryKey = GlobalKey();
+
+  final ImagePicker _picker = ImagePicker();
+  File? _studentPhoto;
   List<Group> groups = [];
+  Color mainColor =primaryColor;
+  Future<void> _takePhoto(bool fromCamera) async {
+    final XFile? photo = await _picker.pickImage(source: fromCamera?ImageSource.camera:ImageSource.gallery);
+
+    if (photo != null) {
+      // Crop the image
+      final croppedFile = await ImageCropper().cropImage(
+        sourcePath: photo.path,
+        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1), // Square cropping
+        compressFormat: ImageCompressFormat.jpg,
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Crop Image',
+            toolbarColor: Colors.blue,
+            toolbarWidgetColor: Colors.white,
+            initAspectRatio: CropAspectRatioPreset.square,
+            lockAspectRatio: true,
+          ),
+          IOSUiSettings(
+            title: 'Crop Image',
+          ),
+        ],
+      );
+
+      if (croppedFile != null) {
+        setState(() {
+          _studentPhoto = File(croppedFile.path);
+        });
+
+        // Save the cropped image
+        await StudentController.updateStudent(widget.student, _studentPhoto!)
+            .then((_) {
+          widget.student.imageUrl=_studentPhoto!.path;
+              existingStudents[existingStudents.indexWhere((test)=>test.id==widget.student.id)]=widget.student;
+              setState(() {});
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Photo updated successfully!')),
+          );
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Image cropping canceled.')),
+        );
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No photo selected.')),
+      );
+    }
+  }
+
+  Future<Uint8List?> captureWidgetAsImage(GlobalKey key) async {
+    try {
+      RenderRepaintBoundary boundary =
+      key.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      var image = await boundary.toImage(pixelRatio: 3.0);
+      ByteData? byteData = await image.toByteData(format: ImageByteFormat.png);
+      return byteData?.buffer.asUint8List();
+    } catch (e) {
+      print("Error capturing widget: $e");
+      return null;
+    }
+  }
+
+  Future<void> printCapturedImage(Uint8List imageBytes) async {
+    await Printing.layoutPdf(
+      onLayout: (format) async {
+        final pdf = pw.Document();
+        final image = pw.MemoryImage(imageBytes);
+        pdf.addPage(
+          pw.Page(
+            margin: const pw.EdgeInsets.all(2),
+            build: (context) => pw.Image(image,
+            height: 150,
+            alignment: const pw.Alignment(2,2)),
+          ),
+        );
+        return pdf.save();
+      },
+    );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    mainColor = widget.student.sex.index==Sex.male.index?primaryColor:thirdColor;
+  }
+
+
   @override
   Widget build(BuildContext context) {
+    print(widget.student.imageUrl);
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
+        foregroundColor: mainColor,
+        actionsIconTheme: IconThemeData(
+          color: mainColor,
+        ),
+        title: Text(
           "Détails de l'étudiant",
+          style: TextStyle(
+            color: mainColor
+          ),
         ),
         actions: [
-          IconButton(onPressed: (){
-            Navigator.push(context, MaterialPageRoute(builder: (context)=>PaymentHistoryStudent(student: widget.student)));
-          }, icon: const Icon(Icons.history))
+          IconButton(
+              onPressed: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => PaymentHistoryStudent(student: widget.student)));
+              },
+              icon: const Icon(Icons.history))
+        ],
+      ),
+      floatingActionButton: SpeedDial(
+        icon: Icons.more_vert_rounded,
+        backgroundColor: mainColor,
+
+        children: [
+          SpeedDialChild(
+            child: const Icon(Icons.camera_alt),
+            label: "Prendre une photo",
+            onTap:()=> _takePhoto(true),
+            shape: const CircleBorder(),
+            backgroundColor: mainColor,
+            foregroundColor: Colors.white,
+            labelBackgroundColor: mainColor,
+            labelStyle: const TextStyle(
+              color: Colors.white,
+            ),
+          ),
+          SpeedDialChild(
+            child: const Icon(Icons.image_rounded),
+            label: "Importer une image",
+            shape: const CircleBorder(),
+            onTap:()=> _takePhoto(false),
+            backgroundColor: mainColor,
+            foregroundColor: Colors.white,
+            labelBackgroundColor: mainColor,
+            labelStyle: const TextStyle(
+              color: Colors.white,
+            ),
+          ),
+          SpeedDialChild(
+            child: const Icon(Icons.medical_information_rounded),
+            shape: const CircleBorder(),
+            label: "Carte de l'étudiant",
+            backgroundColor: mainColor,
+            foregroundColor: Colors.white,
+            labelBackgroundColor: mainColor,
+            labelStyle: const TextStyle(
+              color: Colors.white,
+            ),
+            onTap: (){
+              showDialog(context: context, builder: (context)=>AlertDialog(
+                backgroundColor: Colors.transparent,
+                content: RotatedBox(
+                    quarterTurns: 45,
+                    child: RepaintBoundary(
+                        key: _repaintBoundaryKey,
+                        child: StudentCard(student: widget.student,))),
+
+              actions: [
+                ElevatedButton(onPressed: ()async{
+                  Uint8List? imageBytes = await captureWidgetAsImage(_repaintBoundaryKey);
+                  if (imageBytes != null) {
+                    await printCapturedImage(imageBytes);
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Failed to capture widget!")),
+                    );
+                  }
+
+                },
+
+                    style: const ButtonStyle(
+                      backgroundColor: WidgetStatePropertyAll(Colors.black)
+                    ),
+                    child: const Text("Imprimer"))
+              ],),
+              );
+            },
+          ),
+          SpeedDialChild(
+            child: const Icon(Icons.edit_rounded),
+            label: "Modifier les détails",
+            backgroundColor: mainColor,
+            shape: const CircleBorder(),
+            foregroundColor: Colors.white,
+            labelBackgroundColor: mainColor,
+            labelStyle: const TextStyle(
+              color: Colors.white,
+            ),
+            onTap: () {
+            },
+          ),
+          SpeedDialChild(
+            child: const Icon(Icons.delete_rounded),
+            label: "Supprimer l'étudiant",
+            backgroundColor: mainColor,
+            foregroundColor: Colors.white,
+            shape: const CircleBorder(),
+            labelBackgroundColor: mainColor,
+            labelStyle: const TextStyle(
+              color: Colors.white,
+            ),
+            onTap: () {
+            },
+          ),
         ],
       ),
       bottomNavigationBar: Padding(
@@ -89,9 +301,15 @@ class _StudentDetailsState extends State<StudentDetails> {
                 children: [
                   Padding(
                     padding: const EdgeInsets.all(8.0),
-                    child: CircleAvatar(
-                      radius: 50,
-                      backgroundImage: widget.student.imageUrl.isNotEmpty ? NetworkImage(widget.student.imageUrl) : const AssetImage("assets/images/profile.png") as ImageProvider,
+                    child: Hero(
+                      tag: widget.student.id,
+                      child: CircleAvatar(
+                        radius: 50,
+                        backgroundImage: _studentPhoto != null
+                            ? FileImage(_studentPhoto!)
+                            : widget.student.imageUrl.isNotEmpty ? FileImage(File(widget.student.imageUrl))
+                                : const AssetImage("assets/images/profile.png") as ImageProvider,
+                      ),
                     ),
                   ),
                   Text(
@@ -99,7 +317,7 @@ class _StudentDetailsState extends State<StudentDetails> {
                     maxLines: 4,
                     textAlign: TextAlign.left,
                     style: TextStyle(
-                      color: primaryColor,
+                      color: mainColor,
                       fontWeight: FontWeight.bold,
                       fontSize: 20,
                     ),
@@ -134,12 +352,13 @@ class _StudentDetailsState extends State<StudentDetails> {
                   ),
                 ],
               ),
-              Divider(color: primaryColor),
-              const Text(
+              Divider(color: mainColor),
+               Text(
                 "Les Séances",
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w500,
+                  color: mainColor,
                 ),
               ),
               FutureBuilder<List<Group>>(
@@ -155,7 +374,7 @@ class _StudentDetailsState extends State<StudentDetails> {
                     return const Text("Aucune donnée disponible.");
                   }
 
-                  groups = snapshot.data!.where((test)=>test.groupeAttendance.length% test.cours!.nombreSeance<test.cours!.nombreSeance).toList();
+                  groups = snapshot.data!.where((test) => test.groupeAttendance.length % test.cours!.nombreSeance < test.cours!.nombreSeance).toList();
 
                   return Column(
                     children: List.generate(
@@ -163,7 +382,7 @@ class _StudentDetailsState extends State<StudentDetails> {
                       (groupIndex) {
                         Group group = groups[groupIndex];
                         return Card(
-                          color: secondaryColor,
+                          color: mainColor,
                           child: ExpansionTile(
                             backgroundColor: Colors.transparent,
                             collapsedBackgroundColor: Colors.transparent,
@@ -179,54 +398,58 @@ class _StudentDetailsState extends State<StudentDetails> {
                               ),
                             ),
                             children: [
-                              ...List.generate(group.groupeAttendance.length, (month)=> Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: ExpansionTile(title: Text("Mois: ${month+1}",style: const TextStyle(color: Colors.white,fontWeight: FontWeight.w500),),
-                                  iconColor: Colors.white,
-                                  collapsedIconColor: Colors.white,
-                                  children: List.generate(
-                                    group.groupeAttendance.length,
-                                        (seanceIndex) {
-                                      GroupeAttendance seance = group.groupeAttendance[month][seanceIndex];
-                                      StudentAttendance studentAttendance = seance.studentAttendances.firstWhere(
-                                            (test) => test.student.id == widget.student.id,
-                                      );
-                                      return ListTile(
-                                        title: Text(
-                                          'Le ${'${intl.DateFormat.yMMMMEEEEd('fr').format(seance.date)}\ná ${intl.DateFormat.Hm('fr').format(seance.date)}'}',
-                                          style: const TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.white,
+                              ...List.generate(
+                                  group.groupeAttendance.length,
+                                  (month) => Padding(
+                                        padding: const EdgeInsets.all(8.0),
+                                        child: ExpansionTile(
+                                          title: Text(
+                                            "Mois: ${month + 1}",
+                                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+                                          ),
+                                          iconColor: Colors.white,
+                                          collapsedIconColor: Colors.white,
+                                          children: List.generate(
+                                            group.groupeAttendance[month].length,
+                                            (seanceIndex) {
+                                              GroupeAttendance seance = group.groupeAttendance[month][seanceIndex];
+                                              StudentAttendance studentAttendance = seance.studentAttendances.firstWhere(
+                                                (test) => test.student.id == widget.student.id,
+                                              );
+                                              return ListTile(
+                                                title: Text(
+                                                  'Le ${'${intl.DateFormat.yMMMMEEEEd('fr').format(seance.date)}\ná ${intl.DateFormat.Hm('fr').format(seance.date)}'}',
+                                                  style: const TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                                leading: Icon(
+                                                  Icons.circle,
+                                                  color: studentAttendance.status == AttendanceStatus.late
+                                                      ? Colors.yellowAccent
+                                                      : studentAttendance.status == AttendanceStatus.absent
+                                                          ? Colors.redAccent
+                                                          : Colors.lightGreenAccent,
+                                                ),
+                                                trailing: Text(
+                                                  studentAttendance.remarks.isNotEmpty ? studentAttendance.remarks : studentAttendance.status.name,
+                                                  style: TextStyle(
+                                                    color: studentAttendance.remarks.isNotEmpty
+                                                        ? Colors.orange
+                                                        : studentAttendance.status == AttendanceStatus.late
+                                                            ? Colors.yellowAccent
+                                                            : studentAttendance.status == AttendanceStatus.absent
+                                                                ? Colors.redAccent
+                                                                : Colors.lightGreenAccent,
+                                                  ),
+                                                ),
+                                              );
+                                            },
                                           ),
                                         ),
-                                        leading: Icon(
-                                          Icons.circle,
-                                          color: studentAttendance.status == AttendanceStatus.late
-                                              ? Colors.yellowAccent
-                                              : studentAttendance.status == AttendanceStatus.absent
-                                              ? Colors.redAccent
-                                              : Colors.lightGreenAccent,
-                                        ),
-                                        trailing: Text(
-                                          studentAttendance.remarks.isNotEmpty?studentAttendance.remarks:studentAttendance.status.name,
-                                          style: TextStyle(
-                                            color: studentAttendance.remarks.isNotEmpty?
-                                            Colors.orange
-                                                :studentAttendance.status == AttendanceStatus.late
-                                                ? Colors.yellowAccent
-                                                : studentAttendance.status == AttendanceStatus.absent
-                                                ? Colors.redAccent
-                                                : Colors.lightGreenAccent,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-
-                                ),
-                              )
-                              )
+                                      ))
                             ],
                           ),
                         );
@@ -248,7 +471,7 @@ class _StudentDetailsState extends State<StudentDetails> {
     required String value,
   }) {
     return ListTile(
-      leading: Icon(icon, color: primaryColor),
+      leading: Icon(icon, color: mainColor),
       title: Text(
         title,
         style: TextStyle(
@@ -262,7 +485,7 @@ class _StudentDetailsState extends State<StudentDetails> {
       subtitle: Text(
         value.isEmpty ? "N/A" : value,
         style: TextStyle(
-          color: primaryColor,
+          color: mainColor,
           fontSize: 14,
         ),
       ),
@@ -281,7 +504,7 @@ class _StudentDetailsState extends State<StudentDetails> {
               child: Column(
                 children: List.generate(
                   groups.length,
-                  (seanceIndex) => Padding(
+                  (groupIndex) => Padding(
                     padding: const EdgeInsets.all(8.0),
                     child: ListTile(
                       shape: RoundedRectangleBorder(
@@ -296,7 +519,7 @@ class _StudentDetailsState extends State<StudentDetails> {
                             return AlertDialog(
                               title: const Text("Confirmation"),
                               content: Text(
-                                "Êtes-vous sûr de vouloir sélectionner ce groupe:\n ${groups[seanceIndex].cours?.name ?? ""}\n ${groups[seanceIndex].name}",
+                                "Êtes-vous sûr de vouloir sélectionner ce groupe:\n ${groups[groupIndex].cours?.name ?? ""}\n ${groups[groupIndex].name}",
                                 textDirection: TextDirection.rtl,
                               ),
                               actions: [
@@ -309,20 +532,20 @@ class _StudentDetailsState extends State<StudentDetails> {
                                 ),
                                 TextButton(
                                   onPressed: () async {
-                                    if(groups[seanceIndex].groupeAttendance.isEmpty){
-                                      groups[seanceIndex].groupeAttendance.add([]);
+                                    if (groups[groupIndex].groupeAttendance.isEmpty) {
+                                      groups[groupIndex].groupeAttendance.add([]);
                                     }
-                                    if (groups[seanceIndex].groupeAttendance.last.isEmpty) {
+                                    if (groups[groupIndex].groupeAttendance.last.isEmpty) {
                                       GroupeAttendance newSession = GroupeAttendance(
                                         date: DateTime.now(),
                                         createdBy: currentAdmin,
                                         studentAttendances: List.generate(
-                                            groups[seanceIndex].students.length,
+                                            groups[groupIndex].students.length,
                                             (stIndex) => StudentAttendance(
                                                   id: '',
                                                   date: DateTime.now(),
-                                                  student: groups[seanceIndex].students[stIndex],
-                                                  status: groups[seanceIndex].students[stIndex].id == widget.student.id ? AttendanceStatus.present : AttendanceStatus.absent,
+                                                  student: groups[groupIndex].students[stIndex],
+                                                  status: groups[groupIndex].students[stIndex].id == widget.student.id ? AttendanceStatus.present : AttendanceStatus.absent,
                                                   createdBy: currentAdmin,
                                                   createdAt: DateTime.now(),
                                                   updatedAt: DateTime.now(),
@@ -332,19 +555,19 @@ class _StudentDetailsState extends State<StudentDetails> {
                                         updatedAt: DateTime.now(),
                                         id: '',
                                       );
-                                      groups[seanceIndex].groupeAttendance.last.add(newSession);
+                                      groups[groupIndex].groupeAttendance.last.add(newSession);
                                     } else {
-                                      groups[seanceIndex].groupeAttendance.last.sort((a, b) => a.date.compareTo(b.date));
-                                      int x = groups[seanceIndex].groupeAttendance.last.last.studentAttendances.indexWhere((test) => test.student.id == widget.student.id);
+                                      groups[groupIndex].groupeAttendance.last.sort((a, b) => a.date.compareTo(b.date));
+                                      int x = groups[groupIndex].groupeAttendance.last.last.studentAttendances.indexWhere((test) => test.student.id == widget.student.id);
                                       if (x >= 0) {
-                                        groups[seanceIndex].groupeAttendance.last.last.studentAttendances[x].status = AttendanceStatus.present;
-                                        groups[seanceIndex].groupeAttendance.last.last.studentAttendances[x].remarks = '';
-                                        groups[seanceIndex].groupeAttendance.last.last.studentAttendances[x].updatedAt = DateTime.now();
-                                        groups[seanceIndex].groupeAttendance.last.last.studentAttendances[x].createdAt = DateTime.now();
-                                        groups[seanceIndex].groupeAttendance.last.last.studentAttendances[x].createdBy = currentAdmin;
+                                        groups[groupIndex].groupeAttendance.last.last.studentAttendances[x].status = AttendanceStatus.present;
+                                        groups[groupIndex].groupeAttendance.last.last.studentAttendances[x].remarks = '';
+                                        groups[groupIndex].groupeAttendance.last.last.studentAttendances[x].updatedAt = DateTime.now();
+                                        groups[groupIndex].groupeAttendance.last.last.studentAttendances[x].createdAt = DateTime.now();
+                                        groups[groupIndex].groupeAttendance.last.last.studentAttendances[x].createdBy = currentAdmin;
                                       }
                                     }
-                                    await GroupController.updateGroup(groups[seanceIndex]).then((v) {
+                                    await GroupController.updateGroup(groups[groupIndex]).then((v) {
                                       Navigator.pop(context);
                                       Navigator.pop(context);
                                     });
@@ -357,10 +580,10 @@ class _StudentDetailsState extends State<StudentDetails> {
                         );
                       },
                       title: Text(
-                        groups[seanceIndex].cours?.name ?? "",
+                        groups[groupIndex].cours?.name ?? "",
                         textDirection: TextDirection.rtl,
                       ),
-                      subtitle: Text(groups[seanceIndex].name),
+                      subtitle: Text(groups[groupIndex].name),
                     ),
                   ),
                 ),

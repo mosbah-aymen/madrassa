@@ -33,17 +33,20 @@ class _ProfPaymentScreenState extends State<ProfPaymentScreen> {
   void initState() {
     super.initState();
     selectedGroups = List.from(widget.allGroups);
+
     for (var group in selectedGroups) {
-      for (var seance in group.groupeAttendance.last) {
-        selectedStudentAttendances[seance] = List.from(seance.studentAttendances);
+      if(group.groupeAttendance.isNotEmpty){
+        for (var seance in group.groupeAttendance.last) {
+          selectedStudentAttendances[seance] = List.from(seance.studentAttendances);
+        }
       }
     }
   }
 
-  List<double> calculateProfPaymentPerGroup() {
-    return selectedGroups.map((group) {
+  List<double> calculateProfPaymentPerGroup(int month) {
+    return selectedGroups.where((test)=>test.groupeAttendance.isNotEmpty).map((group) {
       double groupPayment = 0.0;
-      for (var seance in group.groupeAttendance) {
+      for (var seance in group.groupeAttendance[month]) {
         if (selectedStudentAttendances.containsKey(seance)) {
           int presentStudents = selectedStudentAttendances[seance]!.where((studentAttendance) => studentAttendance.remarks.isEmpty).length;
           groupPayment += group.cours!.totalCostPerSeance * presentStudents * group.profPercent * 0.01;
@@ -72,12 +75,14 @@ class _ProfPaymentScreenState extends State<ProfPaymentScreen> {
       }
     });
   }
+  double totalPayment=0.0;
 
   @override
   Widget build(BuildContext context) {
-    final profPayments = calculateProfPaymentPerGroup();
-    final totalPayment = profPayments.reduce((value, element) => value + element);
-
+    final profPayments = calculateProfPaymentPerGroup(month);
+    if(profPayments.isNotEmpty){
+      totalPayment = profPayments.reduce((value, element) => value + element);
+    }
     return Scaffold(
       appBar: AppBar(
         title: const Text("Payment"),
@@ -85,22 +90,35 @@ class _ProfPaymentScreenState extends State<ProfPaymentScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Row(
-                children: [
-                  Expanded(
-                      child: StatCard(
-                    value: "${widget.allGroups.first.cours!.price}",
-                    title: "Prix de Cours",
-                    unit: "DA",
-                    color: Colors.green,
-                  )),
-                  Expanded(child: StatCard(value: "${widget.allGroups.first.cours!.nombreSeance}", title: "Nombre de Séances", unit: "séance/mois", color: Colors.green)),
-                ],
-              ),
-            ),
-            ...List.generate(widget.allGroups.length, (groupIndex) {
+            ...List.generate(widget.allGroups.length, (cIndex) {
+              return Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Column(
+                  children: [
+                    StatCard(
+                      value: widget.allGroups[cIndex].name,
+                      title: widget.allGroups[cIndex].cours!.name,
+                      unit: "",
+                      color: Colors.green,
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                            child: StatCard(
+                              value: "${widget.allGroups[cIndex].cours!.price}",
+                              title: "Prix de Cours",
+                              unit: "DA",
+                              color: Colors.green,
+                            )),
+                        Expanded(child: StatCard(value: "${widget.allGroups[cIndex].cours!.nombreSeance}", title: "Nombre de Séances", unit: "séance/mois", color: Colors.green)),
+                      ],
+                    ),
+                     Divider(color: secondaryColor,),
+                  ],
+                ),
+              );
+            }),
+            ...List.generate(widget.allGroups.where((test)=>test.groupeAttendance.isNotEmpty).length, (groupIndex) {
               final group = widget.allGroups[groupIndex];
               final groupPayment = profPayments[groupIndex];
 
@@ -118,7 +136,7 @@ class _ProfPaymentScreenState extends State<ProfPaymentScreen> {
             ),
             ElevatedButton(
               onPressed: () {
-                final profPayments = calculateProfPaymentPerGroup();
+                final profPayments = calculateProfPaymentPerGroup(month);
                 final totalPayment = profPayments.reduce((value, element) => value + element);
                 TeacherController.printInvoice(widget.teacher, widget.allGroups, profPayments, totalPayment, selectedStudentAttendances.keys.toList());
               },
@@ -155,9 +173,9 @@ class _GroupPaymentCardState extends State<GroupPaymentCard> {
   int month = 0;
   @override
   Widget build(BuildContext context) {
-    final events = widget.group.schedule.map((schedule) {
+    final events = widget.group.schedule.getRange(0, 1).map((schedule) {
       return '${schedule.start.hour}:${schedule.start.minute.toString().padLeft(2, '0')} - ${schedule.end.hour}:${schedule.end.minute.toString().padLeft(2, '0')}';
-    }).join('');
+    }).join(' ');
 
     final repeatedDays = widget.group.repeatedDaysOfWeek?.isNotEmpty == true ? "${widget.group.repeatedDaysOfWeek?.first.start.format(context)} - ${widget.group.repeatedDaysOfWeek?.first.end.format(context)}" : '';
 

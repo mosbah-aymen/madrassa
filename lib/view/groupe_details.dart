@@ -120,11 +120,14 @@ class _GroupeDetailsState extends State<GroupeDetails> {
                       ),
                     ),
                     ...List.generate(group.groupeAttendance.length, (month) {
-                      return ExpansionTile(
-                        title: Text("Mois : ${month + 1}"),
-                        children: [
-                          ...List.generate(group.groupeAttendance[month].length, (index) => GroupeAttendanceWidget(attendance: group.groupeAttendance[month][index])),
-                        ],
+                      return Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: ExpansionTile(
+                          title: Text("Mois : ${month + 1}"),
+                          children: [
+                            ...List.generate(group.groupeAttendance[month].length, (index) => GroupeAttendanceWidget(attendance: group.groupeAttendance[month][index])),
+                          ],
+                        ),
                       );
                     }),
                     ElevatedButton(

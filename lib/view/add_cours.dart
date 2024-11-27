@@ -221,16 +221,10 @@ class _AddCoursState extends State<AddCours> {
     if (day != null && group.repeatedDaysOfWeek != null) {
       for (RepeatedDay existingDay in group.repeatedDaysOfWeek!) {
         if (existingDay.dayIndex == day.dayIndex) {
-          DateTime existingStart = DateTime(day.nextDay.year,day.nextDay.month,day.nextDay.day,day.nextDay.hour,day.nextDay.minute);
-
-          DateTime existingEnd = existingDay.nextDay.add(
-            Duration(
-              hours: existingDay.end.hour - existingDay.start.hour,
-              minutes: existingDay.end.minute - existingDay.start.minute,
-            ),
-          );
-
+          DateTime existingStart = DateTime(day.nextDay.year,day.nextDay.month,day.nextDay.day,existingDay.start.hour,existingDay.start.minute);
+          DateTime existingEnd = DateTime(existingDay.nextDay.year,existingDay.nextDay.month,existingDay.nextDay.day,existingDay.end.hour,existingDay.end.minute);
           if (newRange.start.isBefore(existingEnd) && newRange.end.isAfter(existingStart)) {
+
             return "${group.name} a réservé la salle ${room!.name} le : ${existingDay.dayNameFr}";
           }
         }
@@ -271,13 +265,8 @@ class _AddCoursState extends State<AddCours> {
           if (day != null && otherGroup.repeatedDaysOfWeek != null) {
             for (RepeatedDay existingDay in otherGroup.repeatedDaysOfWeek!) {
               if (existingDay.dayIndex == day.dayIndex) {
-                DateTime existingStart = existingDay.nextDay;
-                DateTime existingEnd = existingDay.nextDay.add(
-                  Duration(
-                    hours: existingDay.end.hour - existingDay.start.hour,
-                    minutes: existingDay.end.minute - existingDay.start.minute - 1,
-                  ),
-                );
+                DateTime existingStart = DateTime(existingDay.nextDay.year,existingDay.nextDay.month,existingDay.nextDay.day,existingDay.start.hour,existingDay.start.minute);
+                DateTime existingEnd = DateTime(existingDay.nextDay.year,existingDay.nextDay.month,existingDay.nextDay.day,existingDay.end.hour,existingDay.end.minute);
 
                 if (newRange.start.isBefore(existingEnd) && newRange.end.isAfter(existingStart)) {
                   return "${otherGroup.name} a réservé la salle '${room.name}' chaque '${existingDay.dayNameFr}' \nDu : ${existingDay.start.format(context)} au : ${existingDay.end.format(context)}";

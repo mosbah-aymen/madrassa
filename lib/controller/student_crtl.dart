@@ -1,8 +1,13 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
 
 import 'package:madrassa/model/student.dart';
+import 'package:path_provider/path_provider.dart';
 
 class StudentController {
   static final CollectionReference _studentsCollection =
@@ -12,7 +17,7 @@ class StudentController {
   // Create a new student
   static Future<void> createStudent(Student student, File? imageFile) async {
     if (imageFile != null) {
-      String imageUrl = await _uploadImage(student.id, imageFile);
+      String imageUrl = await uploadImage(student.id, imageFile);
       student = Student(
         id: student.id,
         nom: student.nom,
@@ -26,6 +31,10 @@ class StudentController {
         sex: student.sex,
         address: student.address,
         imageUrl: imageUrl,
+        imageBase64: "",
+        birthDate: student.birthDate,
+        fathersWork: student.fathersWork,
+        mothersWork: student.mothersWork,
       );
     }
     await _studentsCollection.add(student.toMap()).then((doc) async {
@@ -60,7 +69,7 @@ class StudentController {
         await _deleteImage(student.id);
       }
       // Upload new image
-      String imageUrl = await _uploadImage(student.id, imageFile);
+      String imageUrl = await uploadImage(student.id, imageFile);
       student = Student(
         id: student.id,
         nom: student.nom,
@@ -74,6 +83,10 @@ class StudentController {
         sex: student.sex,
         address: student.address,
         imageUrl: imageUrl,
+        imageBase64: "",
+        birthDate: student.birthDate,
+        fathersWork: student.fathersWork,
+        mothersWork: student.mothersWork,
       );
     }
     await _studentsCollection.doc(student.id).update(student.toMap());
@@ -88,17 +101,63 @@ class StudentController {
     await _studentsCollection.doc(id).delete();
   }
 
-  // Upload image to Firebase Storage
-  static Future<String> _uploadImage(String studentId, File imageFile) async {
-    Reference ref = _storage.ref().child('student_images/$studentId');
-    UploadTask uploadTask = ref.putFile(imageFile);
-    TaskSnapshot taskSnapshot = await uploadTask;
-    return await taskSnapshot.ref.getDownloadURL();
+  static final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
+
+  // Flag to decide storage method
+  static bool useFirebase = true; // Change to false for local storage
+
+  // Upload image to Firebase Realtime Database or Local Folder
+  static Future<String> uploadImage(String studentId, File imageFile) async {
+    if (useFirebase) {
+      // Save file locally first
+      final directory = await getApplicationDocumentsDirectory();
+      final localPath = "${directory.path}/student_images/$studentId.jpg";
+      await Directory("${directory.path}/student_images").create(recursive: true);
+      await imageFile.copy(localPath);
+
+      // Save the local path to Realtime Database
+      await _dbRef.child('students/$studentId').update({
+        'imagePath': localPath,
+      });
+
+      return localPath;
+    } else {
+      // Save file locally without involving the database
+      final directory = await getApplicationDocumentsDirectory();
+      final localPath = "${directory.path}/student_images/$studentId.jpg";
+      await Directory("${directory.path}/student_images").create(recursive: true);
+      await imageFile.copy(localPath);
+      return localPath;
+    }
   }
 
-  // Delete image from Firebase Storage
+  // Delete image from Firebase Realtime Database or Local Folder
   static Future<void> _deleteImage(String studentId) async {
-    Reference ref = _storage.ref().child('student_images/$studentId');
-    await ref.delete();
+    if (useFirebase) {
+      // Retrieve the image path from Realtime Database
+      final DataSnapshot snapshot = await _dbRef.child('students/$studentId/imagePath').get();
+
+      if (snapshot.exists) {
+        final String imagePath = snapshot.value as String;
+
+        // Delete the local file
+        final file = File(imagePath);
+        if (await file.exists()) {
+          await file.delete();
+        }
+
+        // Remove the imagePath from the database
+        await _dbRef.child('students/$studentId/imagePath').remove();
+      }
+    } else {
+      // Only delete the local file
+      final directory = await getApplicationDocumentsDirectory();
+      final localPath = "${directory.path}/student_images/$studentId.jpg";
+
+      final file = File(localPath);
+      if (await file.exists()) {
+        await file.delete();
+      }
+    }
   }
 }

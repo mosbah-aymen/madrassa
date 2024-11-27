@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -48,8 +50,8 @@ class _StudentsState extends State<Students> {
                         return Padding(
                           padding: const EdgeInsets.all(8.0),
                           child: ListTile(
-                            onTap: () {
-                              Navigator.push(
+                            onTap: () async{
+                             await Navigator.push(
                                 context,
                                 MaterialPageRoute(
                                   builder: (context) => StudentDetails(
@@ -57,8 +59,15 @@ class _StudentsState extends State<Students> {
                                   ),
                                 ),
                               );
+                             setState(() {});
                             },
-                            leading: Container(
+                            leading:
+                            students[index].imageUrl.isNotEmpty?ClipRRect(
+                                 borderRadius: BorderRadius.circular(10),
+                                child: Hero(
+                                    tag: students[index].id,
+                                    child: Image.file(File(students[index].imageUrl),height: 50,width: 50,fit: BoxFit.cover,))):
+                            Container(
                               height: 42,
                               width: 42,
                               padding: const EdgeInsets.only(left: 3, right: 3, top: 3, bottom: 0.5),
@@ -66,13 +75,13 @@ class _StudentsState extends State<Students> {
                                 borderRadius: BorderRadius.circular(10),
                                 color: students[index].sex==Sex.male?primaryColor:thirdColor,
                               ),
-                              child: const Icon(
+                              child:const Icon(
                                 FontAwesomeIcons.userGraduate,
                                 color: Colors.white,
                               ),
                             ),
                             title: Text("${students[index].nom.toUpperCase()} ${students[index].prenom}"),
-                            subtitle: Text("${students[index].groups.length} Cours"),
+                            subtitle: Text("${students[index].nomArab.toUpperCase()} ${students[index].prenomArab}"),
                             trailing: Icon(
                               Icons.arrow_forward_ios_rounded,
                               color: students[index].sex==Sex.male?primaryColor:thirdColor,

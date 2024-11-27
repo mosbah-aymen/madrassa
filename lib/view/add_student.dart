@@ -1,5 +1,9 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:intl/intl.dart';
 import 'package:madrassa/components/build_text_form_field.dart';
 import 'package:madrassa/constants/enums.dart';
 import 'package:madrassa/controller/student_crtl.dart';
@@ -23,7 +27,10 @@ class _AddStudentState extends State<AddStudent> {
   final TextEditingController phone1Controller = TextEditingController();
   final TextEditingController phone2Controller = TextEditingController();
   final TextEditingController addressController = TextEditingController();
-
+  final TextEditingController fathersWorkController = TextEditingController();
+  final TextEditingController mothersWorkController = TextEditingController();
+  DateTime? birthDate;
+  File? imageFile;
   Sex? _selectedSex;
 
   @override
@@ -35,10 +42,14 @@ class _AddStudentState extends State<AddStudent> {
       bottomNavigationBar:                 Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20.0),
         child: ElevatedButton(
-          onPressed: () {
+          onPressed: () async{
             // Validate the form
             if (_formKey.currentState!.validate()) {
               if (_selectedSex == null) {
+                Fluttertoast.showToast(msg: 'Le sexe est requis');
+                return;
+              }
+              if (birthDate == null) {
                 Fluttertoast.showToast(msg: 'Le sexe est requis');
                 return;
               }
@@ -55,7 +66,11 @@ class _AddStudentState extends State<AddStudent> {
                 phone2: phone2Controller.text,
                 sex: _selectedSex!,
                 address: addressController.text,
-                imageUrl: "",
+                fathersWork: fathersWorkController.text,
+                mothersWork: mothersWorkController.text,
+                imageUrl: imageFile==null?'':imageFile!.path,
+                imageBase64: imageFile==null?'':base64Encode(await imageFile!.readAsBytes()),
+                birthDate: birthDate!,
               );
               StudentController.createStudent(student, null);
             }
@@ -106,6 +121,25 @@ class _AddStudentState extends State<AddStudent> {
                     ),
                     Expanded(child: buildTextFormField(phone2Controller, "Téléphone 2 :", TextInputType.phone)),
                   ],
+                ),
+                Row(
+                  children: [
+                    Expanded(child: buildTextFormField(fathersWorkController, "Le métier du père :", TextInputType.text,isRequired: true)),
+                    const SizedBox(
+                      width: 5,
+                    ),
+                    Expanded(child: buildTextFormField(mothersWorkController, "Le métier du mère :", TextInputType.text)),
+                  ],
+                ),
+
+                GestureDetector(
+                  onTap: ()async{
+                   birthDate = await showDatePicker(context: context, firstDate: DateTime(1970), lastDate: DateTime.now());
+                   setState(() {});
+                  },
+                  child: buildTextFormField(TextEditingController(
+                    text: birthDate==null?'':DateFormat.yMMMMd("fr").format(birthDate!),
+                  ), "Date de Naissance", TextInputType.datetime,readOnly: true,isRequired: true),
                 ),
                 buildTextFormField(emailController, "Email :", TextInputType.emailAddress),
                 buildTextFormField(addressController, "Adresse :", TextInputType.text),

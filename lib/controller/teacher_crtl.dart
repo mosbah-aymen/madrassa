@@ -156,7 +156,7 @@ class TeacherController {
           pw.Divider(),
 
           // Iterate over all groups and display payment info for each group
-          ...List.generate(allGroups.length, (index) {
+          ...List.generate(allGroups.where((test)=>test.groupeAttendance.isNotEmpty).length, (index) {
             final group = allGroups[index];
             final groupPayment = profPayments[index];
 

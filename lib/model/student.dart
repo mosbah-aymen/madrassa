@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:madrassa/constants/enums.dart';
 import 'package:madrassa/model/groupe.dart'; // Import the Group model
 
@@ -9,9 +10,12 @@ class Student {
   String email;
   String phone1, phone2;
   Sex sex;
+  String fathersWork;
+  String mothersWork;
   String address;
+  DateTime birthDate;
   String imageUrl;
-
+  String imageBase64;
 
   Student({
     required this.id,
@@ -19,13 +23,17 @@ class Student {
     required this.prenom,
     required this.nomArab,
     required this.prenomArab,
-    required this.groups, // Updated to List<Group>
+    required this.groups,
     required this.email,
     required this.phone1,
     required this.phone2,
     required this.sex,
     required this.address,
     required this.imageUrl,
+    required this.imageBase64,
+    required this.birthDate,
+  required this.fathersWork,
+  required this.mothersWork,
   });
 
   factory Student.fromMap(Map<String, dynamic> data) {
@@ -42,6 +50,10 @@ class Student {
       sex: data['sex'] == Sex.male.name ? Sex.male : Sex.female,
       address: data['address'] ?? '',
       imageUrl: data['imageUrl'] ?? '',
+      imageBase64: data['imageBase64'] ?? '',
+      birthDate: data['birthDate'].toDate(),
+      fathersWork: data['fathersWork'] ?? '',
+      mothersWork: data['mothersWork'] ?? '',
     );
   }
 
@@ -62,6 +74,10 @@ class Student {
       'sex': sex.name,
       'address': address,
       'imageUrl': imageUrl,
+      'imageBase64': imageBase64,
+      'birthDate': birthDate,
+      'fathersWork': fathersWork,
+      'mothersWork': mothersWork,
     };
   }
 }

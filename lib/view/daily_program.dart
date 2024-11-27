@@ -12,10 +12,10 @@ class DailyProgram extends StatefulWidget {
   const DailyProgram({super.key});
 
   @override
-  _DailyProgramState createState() => _DailyProgramState();
+  DailyProgramState createState() => DailyProgramState();
 }
 
-class _DailyProgramState extends State<DailyProgram> {
+class DailyProgramState extends State<DailyProgram> {
   final DateTime _selectedDate = DateTime.now();
   DateTimeRange? _selectedTimeRange;
   List<Cours> courses = existingCours;
@@ -71,12 +71,13 @@ class _DailyProgramState extends State<DailyProgram> {
   }
 
   // Method to generate the PDF program for printing
-  Future<void> _generatePDF() async {
+  Future<void> _generatePDF(BuildContext context) async {
     final pdf = pw.Document();
     final filteredCourses = getFilteredCourses();
 
     if (filteredCourses.isEmpty) {
       print("No courses found for the selected date and time range.");
+      return;
     }
 
     final arabicFont = await PdfGoogleFonts.amiriRegular();
@@ -86,92 +87,102 @@ class _DailyProgramState extends State<DailyProgram> {
     ];
 
     pdf.addPage(
-      pw.Page(
+      pw.MultiPage(
         build: (pw.Context context) {
-          return pw.Column(
-            children: [
-              pw.Text(
-                'Program for ${intl.DateFormat.yMMMMd().format(_selectedDate)}',
-                style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
-              ),
-              pw.SizedBox(height: 16),
-              ...daysOfWeekInFrench.map((dayName) {
-                final dayCourses = filteredCourses.where((courseData) {
-                  final course = courseData['course'] as Cours;
-                  final groups = courseData['groups'] as List<Group>;
+          return [
+            pw.Text(
+              'Programme pour ${intl.DateFormat.yMMMMd("fr").format(_selectedDate)}',
+              style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.SizedBox(height: 16),
 
-                  return groups.any((group) {
-                    return group.schedule.any((schedule) {
-                      final dayOfWeek = intl.DateFormat.E().format(schedule.start);
-                      return dayOfWeek == dayName.substring(0, 3);
-                    });
+            // Iterate through each day of the week
+            ...daysOfWeekInFrench.map((dayName) {
+              final dayCourses = filteredCourses.where((courseData) {
+                final groups = courseData['groups'] as List<Group>;
+
+                return groups.any((group) {
+                  return group.schedule.any((schedule) {
+                    final dayOfWeek = intl.DateFormat.EEEE("fr").format(schedule.start);
+                    return dayOfWeek.toLowerCase() == dayName.toLowerCase();
                   });
-                }).toList();
+                });
+              }).toList();
 
-                if (dayCourses.isNotEmpty) {
-                  return pw.Column(
+              if (dayCourses.isEmpty) return pw.Container();
+
+              return pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(
+                    dayName,
+                    style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
+                  ),
+                  pw.SizedBox(height: 8),
+
+                  // Table of courses for the day
+                  pw.Table(
+                    border: pw.TableBorder.all(width: 0.5, color: PdfColors.black),
                     children: [
-                      pw.Text(
-                        dayName,
-                        style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
-                      ),
-                      pw.Table(
-                        border: pw.TableBorder.all(width: 1, color: PdfColors.black),
+                      // Table header
+                      pw.TableRow(
+                        decoration: const pw.BoxDecoration(color: PdfColors.grey300),
                         children: [
-                          pw.TableRow(
-                            children: [
-                              pw.Text(
-                                'Course',
-                                style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
-                              ),
-                              pw.Text(
-                                'Group',
-                                style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
-                              ),
-                              pw.Text(
-                                'Time',
-                                style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
-                              ),
-                            ],
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.all(4),
+                            child: pw.Text('Cours', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
                           ),
-                          ...List.generate(dayCourses.length, (index) {
-                            final courseData = dayCourses[index];
-                            final course = courseData['course'];
-                            final groups = courseData['groups'];
-
-                            return pw.TableRow(
-                              children: List.generate(groups.length, (groupIndex) {
-                                final group = groups[groupIndex];
-                                return pw.Row(
-                                  children: [
-                                    pw.Text(course.name, style: const pw.TextStyle(fontSize: 10)),
-                                    pw.Text(group.name, style: const pw.TextStyle(fontSize: 10)),
-                                    pw.Text(
-                                      group.schedule
-                                          .where((schedule) =>
-                                      intl.DateFormat.E().format(schedule.start) ==
-                                          dayName.substring(0, 3))
-                                          .map((schedule) {
-                                        return '${intl.DateFormat.Hm().format(schedule.start)} - ${intl.DateFormat.Hm().format(schedule.end)}';
-                                      }).join('\n'),
-                                      style: const pw.TextStyle(fontSize: 10),
-                                    ),
-                                  ],
-                                );
-                              }),
-                            );
-                          }),
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.all(4),
+                            child: pw.Text('Groupe', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                          ),
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.all(4),
+                            child: pw.Text('Horaire', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                          ),
                         ],
                       ),
-                      pw.SizedBox(height: 16),
+
+                      // Table rows for each course
+                      ...dayCourses.expand((courseData) {
+                        final course = courseData['course'] as Cours;
+                        final groups = courseData['groups'] as List<Group>;
+
+                        return groups.map((group) {
+                          final scheduleDetails = group.schedule
+                              .where((schedule) {
+                            final dayOfWeek = intl.DateFormat.EEEE("fr").format(schedule.start);
+                            return dayOfWeek.toLowerCase() == dayName.toLowerCase();
+                          })
+                              .map((schedule) =>
+                          '${intl.DateFormat.Hm().format(schedule.start)} - ${intl.DateFormat.Hm().format(schedule.end)}')
+                              .join(', ');
+
+                          return pw.TableRow(
+                            children: [
+                              pw.Padding(
+                                padding: const pw.EdgeInsets.all(4),
+                                child: pw.Text(course.name, style: pw.TextStyle(font: arabicFont), textDirection: pw.TextDirection.rtl),
+                              ),
+                              pw.Padding(
+                                padding: const pw.EdgeInsets.all(4),
+                                child: pw.Text(group.name),
+                              ),
+                              pw.Padding(
+                                padding: const pw.EdgeInsets.all(4),
+                                child: pw.Text(scheduleDetails),
+                              ),
+                            ],
+                          );
+                        });
+                      }),
                     ],
-                  );
-                } else {
-                  return pw.Container();
-                }
-              }).toList(),
-            ],
-          );
+                  ),
+                  pw.SizedBox(height: 16),
+                ],
+              );
+            }).toList(),
+          ];
         },
       ),
     );
@@ -217,7 +228,7 @@ class _DailyProgramState extends State<DailyProgram> {
                 ),
                 const SizedBox(width: 10),
                 ElevatedButton(
-                  onPressed: _generatePDF,
+                  onPressed:()=> _generatePDF(context),
                   child: const Text('Print Program'),
                 ),
               ],
@@ -250,25 +261,44 @@ class _DailyProgramState extends State<DailyProgram> {
                           ),
                           const SizedBox(height: 8.0),
                           ...groups.map((group) {
-                            final scheduleDetails = group.schedule.map((schedule) {
-                              return '${intl.DateFormat.jm().format(schedule.start)} - ${intl.DateFormat.jm().format(schedule.end)}';
+                            // Format the schedules for each group
+                            final events = group.schedule.map((schedule) {
+                              return '${intl.DateFormat.MMMMEEEEd("fr").format(schedule.start)}\n${TimeOfDay(hour: schedule.start.hour, minute: schedule.start.minute).format(context)} - ${TimeOfDay(hour: schedule.end.hour, minute: schedule.end.minute).format(context)}';
                             }).join('\n');
+
+                            // Prepare the repeated days information
+                            String repeatedDays = "";
+                            if (group.repeatedDaysOfWeek != null && group.repeatedDaysOfWeek!.isNotEmpty) {
+                              if (group.repeatedDaysOfWeek!.length < 7) {
+                                repeatedDays = group.repeatedDaysOfWeek!.map((day) => day.dayNameFr).join(', ');
+                              } else {
+                                repeatedDays = "Chaque jour";
+                              }
+                              repeatedDays += "\n${group.repeatedDaysOfWeek!.first.start.format(context)} - ${group.repeatedDaysOfWeek!.first.end.format(context)}";
+                            }
 
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Group: ${group.name}',
+                                  group.name,
                                   style: const TextStyle(fontWeight: FontWeight.bold),
                                 ),
                                 const SizedBox(height: 4.0),
-                                Text(
-                                  'Time: $scheduleDetails',
-                                  style: const TextStyle(color: Colors.black54),
-                                ),
+                                if (events.isNotEmpty)
+                                  Text(
+                                    events,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(color: Colors.black54),
+                                  ),
+                                if (repeatedDays.isNotEmpty)
+                                  Text(
+                                    repeatedDays,
+                                    style: const TextStyle(color: Colors.black54),
+                                  ),
                               ],
                             );
-                          }).toList(),
+                          }),
                         ],
                       ),
                     ),
